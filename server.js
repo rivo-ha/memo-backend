@@ -96,6 +96,45 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 내 정보 가져오기
+app.put('/api/auth/profile', authMiddleware, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: '새 이름을 입력해주세요.' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    user.name = name;
+    await user.save();
+
+    // 작성한 매뉴얼과 댓글의 이름도 업데이트
+    await Manual.updateMany(
+      { authorId: user._id },
+      { $set: { author: name } }
+    );
+    await Manual.updateMany(
+      { 'comments.authorId': user._id },
+      { $set: { 'comments.$[elem].author': name } },
+      { arrayFilters: [{ 'elem.authorId': user._id }] }
+    );
+
+    const token = jwt.sign(
+      { userId: user._id, username: user.username, name: user.name },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ message: '프로필이 업데이트되었습니다.', token, user: { username: user.username, name: user.name } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: '프로필 업데이트 중 오류 발생' });
+  }
+});
+
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
     res.json({ user: req.user });

@@ -5,6 +5,7 @@ import CreateManual from './pages/CreateManual';
 import EditManual from './pages/EditManual';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Profile from './pages/Profile';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BookOpen, LogOut, User } from 'lucide-react';
 import './index.css';
@@ -21,9 +22,9 @@ function Navigation() {
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         {user ? (
           <>
-            <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <User size={18} /> {user.name}님
-            </span>
+            <Link to="/profile" style={{ textDecoration: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', borderRadius: '8px', transition: 'background-color 0.2s' }} className="hover:bg-gray-100">
+              <User size={18} /> <span style={{ fontWeight: '500' }}>{user.name}</span>님
+            </Link>
             <Link to="/create" className="btn btn-primary">
               + 매뉴얼 작성
             </Link>
@@ -57,6 +58,7 @@ function App() {
             <Route path="/edit/:id" element={<EditManual />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </main>
       </div>
