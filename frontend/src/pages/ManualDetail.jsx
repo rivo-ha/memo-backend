@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getManualById, addComment } from '../api';
-import { MessageSquare, ArrowLeft, Clock, Tag } from 'lucide-react';
+import { getManualById, addComment, updateComment, deleteComment } from '../api';
+import { MessageSquare, ArrowLeft, Clock, Tag, Trash2, Edit2, X, Check } from 'lucide-react';
 
 export default function ManualDetail() {
   const { id } = useParams();
@@ -12,7 +12,12 @@ export default function ManualDetail() {
   // Comment form state
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit comment state
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editContent, setEditContent] = useState('');
 
   useEffect(() => {
     fetchManual();
@@ -32,19 +37,60 @@ export default function ManualDetail() {
 
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    if (!author.trim() || !content.trim()) return;
+    if (!author.trim() || !content.trim() || !password.trim()) return;
     
     setSubmitting(true);
     try {
-      await addComment(id, { author, content });
+      await addComment(id, { author, content, password });
       setAuthor('');
       setContent('');
+      setPassword('');
       await fetchManual(); // Refresh comments
     } catch (error) {
       console.error('Failed to add comment', error);
       alert('댓글 저장에 실패했습니다.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    const pwd = window.prompt('댓글을 삭제하려면 비밀번호를 입력하세요:');
+    if (!pwd) return;
+
+    try {
+      await deleteComment(id, commentId, pwd);
+      alert('댓글이 삭제되었습니다.');
+      await fetchManual();
+    } catch (error) {
+      if (error.response?.status === 403) {
+        alert('비밀번호가 일치하지 않습니다.');
+      } else {
+        alert('댓글 삭제에 실패했습니다.');
+      }
+    }
+  };
+
+  const startEditing = (comment) => {
+    setEditingCommentId(comment._id);
+    setEditContent(comment.content);
+  };
+
+  const submitEditComment = async (commentId) => {
+    const pwd = window.prompt('댓글을 수정하려면 비밀번호를 입력하세요:');
+    if (!pwd) return;
+
+    try {
+      await updateComment(id, commentId, { content: editContent, password: pwd });
+      alert('댓글이 수정되었습니다.');
+      setEditingCommentId(null);
+      await fetchManual();
+    } catch (error) {
+      if (error.response?.status === 403) {
+        alert('비밀번호가 일치하지 않습니다.');
+      } else {
+        alert('댓글 수정에 실패했습니다.');
+      }
     }
   };
 
@@ -93,17 +139,50 @@ export default function ManualDetail() {
           {manual.comments?.length === 0 ? (
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>아직 댓글이 없습니다. 첫 번째 댓글을 남겨보세요!</p>
           ) : (
-            manual.comments?.map((comment, idx) => (
-              <div key={idx} className="comment-box animate-fade-in">
+            manual.comments?.map((comment) => (
+              <div key={comment._id} className="comment-box animate-fade-in">
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>{comment.author}</strong>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    {new Date(comment.date).toLocaleString()}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>{comment.author}</strong>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                      {new Date(comment.date).toLocaleString()}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {editingCommentId === comment._id ? (
+                      <>
+                        <button onClick={() => submitEditComment(comment._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)' }} title="수정 완료">
+                          <Check size={16} />
+                        </button>
+                        <button onClick={() => setEditingCommentId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} title="취소">
+                          <X size={16} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => startEditing(comment)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} title="수정">
+                          <Edit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteComment(comment._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }} title="삭제">
+                          <Trash2 size={16} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <p style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontSize: '0.95rem' }}>
-                  {comment.content}
-                </p>
+                
+                {editingCommentId === comment._id ? (
+                  <textarea 
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    style={{ minHeight: '60px', marginBottom: '0' }}
+                  />
+                ) : (
+                  <p style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontSize: '0.95rem' }}>
+                    {comment.content}
+                  </p>
+                )}
               </div>
             ))
           )}
@@ -111,20 +190,30 @@ export default function ManualDetail() {
 
         <form onSubmit={handleCommentSubmit} style={{ marginTop: '2rem', borderTop: '1px solid var(--surface-border)', paddingTop: '2rem' }}>
           <h4 style={{ marginBottom: '1rem' }}>댓글 작성</h4>
-          <input 
-            type="text" 
-            placeholder="작성자 이름" 
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
-            required 
-            style={{ maxWidth: '300px' }}
-          />
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <input 
+              type="text" 
+              placeholder="작성자 이름" 
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              required 
+              style={{ maxWidth: '200px', marginBottom: '0' }}
+            />
+            <input 
+              type="password" 
+              placeholder="비밀번호 (수정/삭제용)" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required 
+              style={{ maxWidth: '200px', marginBottom: '0' }}
+            />
+          </div>
           <textarea 
             placeholder="댓글 내용을 입력하세요..." 
             value={content}
             onChange={(e) => setContent(e.target.value)}
             required
-            style={{ minHeight: '100px' }}
+            style={{ minHeight: '80px' }}
           />
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? '등록 중...' : '댓글 등록'}

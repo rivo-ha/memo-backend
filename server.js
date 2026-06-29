@@ -26,6 +26,7 @@ mongoose.connect(MONGODB_URI)
 const commentSchema = new mongoose.Schema({
   author: { type: String, required: true },
   content: { type: String, required: true },
+  password: { type: String }, // 수정/삭제를 위한 비밀번호
   date: { type: Date, default: Date.now }
 });
 
@@ -116,7 +117,7 @@ app.put('/api/manuals/:id', async (req, res) => {
 // API 2: 특정 매뉴얼에 새로운 댓글 추가하기
 app.post('/api/manuals/:id/comments', async (req, res) => {
   try {
-    const { author, content } = req.body;
+    const { author, content, password } = req.body;
     
     // URL 파라미터로 받은 id를 가진 매뉴얼 찾기
     const manual = await Manual.findOne({ id: Number(req.params.id) });
@@ -126,7 +127,7 @@ app.post('/api/manuals/:id/comments', async (req, res) => {
     }
 
     // 새 댓글을 배열에 추가
-    manual.comments.push({ author, content });
+    manual.comments.push({ author, content, password });
     
     // DB에 변경사항 저장
     await manual.save();
@@ -134,6 +135,50 @@ app.post('/api/manuals/:id/comments', async (req, res) => {
     res.status(201).json(manual); // 업데이트된 매뉴얼 정보를 다시 프론트엔드로 전송
   } catch (err) {
     res.status(400).json({ message: '댓글을 저장하는 중 오류가 발생했습니다.', error: err.message });
+  }
+});
+
+// API: 댓글 수정하기
+app.put('/api/manuals/:id/comments/:commentId', async (req, res) => {
+  try {
+    const { content, password } = req.body;
+    const manual = await Manual.findOne({ id: Number(req.params.id) });
+    if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
+
+    const comment = manual.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: '댓글을 찾을 수 없습니다.' });
+    
+    if (!comment.password || comment.password !== password) {
+      return res.status(403).json({ message: '비밀번호가 일치하지 않습니다.' });
+    }
+
+    comment.content = content;
+    await manual.save();
+    res.status(200).json(manual);
+  } catch (err) {
+    res.status(400).json({ message: '댓글 수정 실패', error: err.message });
+  }
+});
+
+// API: 댓글 삭제하기
+app.delete('/api/manuals/:id/comments/:commentId', async (req, res) => {
+  try {
+    const { password } = req.body;
+    const manual = await Manual.findOne({ id: Number(req.params.id) });
+    if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
+
+    const comment = manual.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: '댓글을 찾을 수 없습니다.' });
+    
+    if (!comment.password || comment.password !== password) {
+      return res.status(403).json({ message: '비밀번호가 일치하지 않습니다.' });
+    }
+
+    manual.comments.pull(req.params.commentId);
+    await manual.save();
+    res.status(200).json(manual);
+  } catch (err) {
+    res.status(400).json({ message: '댓글 삭제 실패', error: err.message });
   }
 });
 

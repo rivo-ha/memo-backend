@@ -11,3 +11,5 @@ export const getManualById = (id) => api.get(`/manuals/${id}`);
 export const createManual = (data) => api.post('/manuals', data);
 export const updateManual = (id, data) => api.put(`/manuals/${id}`, data);
 export const addComment = (id, commentData) => api.post(`/manuals/${id}/comments`, commentData);
+export const updateComment = (manualId, commentId, data) => api.put(`/manuals/${manualId}/comments/${commentId}`, data);
+export const deleteComment = (manualId, commentId, password) => api.delete(`/manuals/${manualId}/comments/${commentId}`, { data: { password } });
