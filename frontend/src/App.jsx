@@ -16,7 +16,7 @@ function Navigation() {
     <header className="header-nav">
       <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <BookOpen size={32} color="#3b82f6" />
-        <h1 style={{ margin: 0, fontSize: '2rem' }}>Manager Hub</h1>
+        <h1 style={{ margin: 0, fontSize: '2rem' }}>5A 메뉴얼</h1>
       </Link>
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         {user ? (
