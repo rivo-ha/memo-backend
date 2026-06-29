@@ -4,30 +4,38 @@ const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const authMiddleware = require('./middleware/auth');
 
 const app = express();
-// 서버 포트 설정 (Render 등에서는 process.env.PORT를 자동으로 할당해줍니다)
 const PORT = process.env.PORT || 5001;
 
-// CORS 설정: 프론트엔드 도메인(예: 배포된 Cloudflare 주소)에서 서버로 요청을 보낼 수 있게 허용합니다.
-// 실제 배포 시에는 origin에 프론트엔드 주소만 넣는 것이 안전합니다.
 app.use(cors()); 
-// 클라이언트에서 보내는 JSON 데이터를 파싱할 수 있게 해줍니다.
 app.use(express.json());
 
-// MongoDB 연결 (비밀번호가 포함된 URI는 환경변수 .env 로 관리해야 합니다)
-// 로컬 테스트용 기본 주소를 폴백으로 세팅했습니다.
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/manager_hub';
 
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB 연결 성공!'))
   .catch(err => console.error('❌ MongoDB 연결 에러:', err));
 
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_for_memo_app';
+
+// 유저 스키마 정의
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  name: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.model('User', userSchema);
+
 // 댓글 스키마 정의
 const commentSchema = new mongoose.Schema({
   author: { type: String, required: true },
+  authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // 회원 연동
   content: { type: String, required: true },
-  password: { type: String }, // 수정/삭제를 위한 비밀번호
   date: { type: Date, default: Date.now }
 });
 
@@ -38,40 +46,90 @@ const manualSchema = new mongoose.Schema({
   category: { type: String, required: true },
   content: { type: String, required: true },
   tags: [String],
+  author: { type: String, default: '손님(Guest)' },
+  authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   lastUpdated: String,
-  comments: [commentSchema] // 댓글 스키마 포함 (서브도큐먼트)
+  comments: [commentSchema]
 });
-
-// 모델 생성
 const Manual = mongoose.model('Manual', manualSchema);
 
-// API 1: 모든 매뉴얼 데이터 가져오기 (React 초기 로딩 시 호출)
+// =======================
+// Auth (인증) API
+// =======================
+
+// 회원가입
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, name } = req.body;
+    const existingUser = await User.findOne({ username });
+    if (existingUser) return res.status(400).json({ message: '이미 존재하는 아이디입니다.' });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({ username, password: hashedPassword, name });
+    await newUser.save();
+    
+    res.status(201).json({ message: '회원가입이 완료되었습니다.' });
+  } catch (err) {
+    res.status(500).json({ message: '회원가입 중 오류 발생', error: err.message });
+  }
+});
+
+// 로그인
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(400).json({ message: '아이디 또는 비밀번호가 틀렸습니다.' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: '아이디 또는 비밀번호가 틀렸습니다.' });
+
+    const payload = { userId: user._id, username: user.username, name: user.name };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ token, user: payload });
+  } catch (err) {
+    res.status(500).json({ message: '로그인 중 오류 발생', error: err.message });
+  }
+});
+
+// 내 정보 가져오기
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
+  try {
+    res.json({ user: req.user });
+  } catch (err) {
+    res.status(500).json({ message: '정보를 가져올 수 없습니다.' });
+  }
+});
+
+// =======================
+// 매뉴얼 및 댓글 API
+// =======================
+
 app.get('/api/manuals', async (req, res) => {
   try {
     const manuals = await Manual.find();
     res.status(200).json(manuals);
   } catch (err) {
-    res.status(500).json({ message: '데이터를 불러오는 중 오류가 발생했습니다.', error: err.message });
+    res.status(500).json({ message: '데이터 불러오기 오류', error: err.message });
   }
 });
 
-// API: 특정 매뉴얼 데이터 하나 가져오기
 app.get('/api/manuals/:id', async (req, res) => {
   try {
     const manual = await Manual.findOne({ id: Number(req.params.id) });
     if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
     res.status(200).json(manual);
   } catch (err) {
-    res.status(500).json({ message: '데이터를 불러오는 중 오류가 발생했습니다.', error: err.message });
+    res.status(500).json({ message: '데이터 불러오기 오류', error: err.message });
   }
 });
 
-// API: 새로운 매뉴얼 생성하기
-app.post('/api/manuals', async (req, res) => {
+app.post('/api/manuals', authMiddleware, async (req, res) => {
   try {
     const { title, category, content, tags } = req.body;
-    
-    // 가장 큰 id를 찾아 1을 더해 새로운 id 생성
     const lastManual = await Manual.findOne().sort({ id: -1 });
     const newId = lastManual ? lastManual.id + 1 : 1;
     
@@ -81,25 +139,28 @@ app.post('/api/manuals', async (req, res) => {
       category,
       content,
       tags: tags || [],
-      lastUpdated: new Date().toISOString().split('T')[0], // YYYY-MM-DD 형식
+      author: req.user.name,
+      authorId: req.user.userId,
+      lastUpdated: new Date().toISOString().split('T')[0],
       comments: []
     });
     
     await newManual.save();
     res.status(201).json(newManual);
   } catch (err) {
-    res.status(400).json({ message: '매뉴얼을 생성하는 중 오류가 발생했습니다.', error: err.message });
+    res.status(400).json({ message: '생성 오류', error: err.message });
   }
 });
 
-// API: 매뉴얼 수정하기
-app.put('/api/manuals/:id', async (req, res) => {
+app.put('/api/manuals/:id', authMiddleware, async (req, res) => {
   try {
     const { title, category, content, tags } = req.body;
-    
     const manual = await Manual.findOne({ id: Number(req.params.id) });
-    if (!manual) {
-      return res.status(404).json({ message: '해당 매뉴얼을 찾을 수 없습니다.' });
+    if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
+
+    // 작성자만 수정 가능 (혹은 모든 회원이 수정 가능하게 할 수도 있지만, 보안상 작성자만으로 설정)
+    if (manual.authorId && manual.authorId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: '자신이 작성한 글만 수정할 수 있습니다.' });
     }
 
     manual.title = title;
@@ -111,46 +172,39 @@ app.put('/api/manuals/:id', async (req, res) => {
     await manual.save();
     res.status(200).json(manual);
   } catch (err) {
-    res.status(400).json({ message: '매뉴얼을 수정하는 중 오류가 발생했습니다.', error: err.message });
+    res.status(400).json({ message: '수정 오류', error: err.message });
   }
 });
 
-// API 2: 특정 매뉴얼에 새로운 댓글 추가하기
-app.post('/api/manuals/:id/comments', async (req, res) => {
+app.post('/api/manuals/:id/comments', authMiddleware, async (req, res) => {
   try {
-    const { author, content, password } = req.body;
-    
-    // URL 파라미터로 받은 id를 가진 매뉴얼 찾기
+    const { content } = req.body;
     const manual = await Manual.findOne({ id: Number(req.params.id) });
-    
-    if (!manual) {
-      return res.status(404).json({ message: '해당 매뉴얼을 찾을 수 없습니다.' });
-    }
+    if (!manual) return res.status(404).json({ message: '해당 매뉴얼을 찾을 수 없습니다.' });
 
-    // 새 댓글을 배열에 추가
-    manual.comments.push({ author, content, password });
-    
-    // DB에 변경사항 저장
+    manual.comments.push({ 
+      author: req.user.name, 
+      authorId: req.user.userId,
+      content 
+    });
     await manual.save();
-    
-    res.status(201).json(manual); // 업데이트된 매뉴얼 정보를 다시 프론트엔드로 전송
+    res.status(201).json(manual);
   } catch (err) {
-    res.status(400).json({ message: '댓글을 저장하는 중 오류가 발생했습니다.', error: err.message });
+    res.status(400).json({ message: '댓글 저장 오류', error: err.message });
   }
 });
 
-// API: 댓글 수정하기
-app.put('/api/manuals/:id/comments/:commentId', async (req, res) => {
+app.put('/api/manuals/:id/comments/:commentId', authMiddleware, async (req, res) => {
   try {
-    const { content, password } = req.body;
+    const { content } = req.body;
     const manual = await Manual.findOne({ id: Number(req.params.id) });
     if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
 
     const comment = manual.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: '댓글을 찾을 수 없습니다.' });
     
-    if (!comment.password || comment.password !== password) {
-      return res.status(403).json({ message: '비밀번호가 일치하지 않습니다.' });
+    if (!comment.authorId || comment.authorId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: '자신이 작성한 댓글만 수정할 수 있습니다.' });
     }
 
     comment.content = content;
@@ -161,18 +215,16 @@ app.put('/api/manuals/:id/comments/:commentId', async (req, res) => {
   }
 });
 
-// API: 댓글 삭제하기
-app.delete('/api/manuals/:id/comments/:commentId', async (req, res) => {
+app.delete('/api/manuals/:id/comments/:commentId', authMiddleware, async (req, res) => {
   try {
-    const { password } = req.body;
     const manual = await Manual.findOne({ id: Number(req.params.id) });
     if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
 
     const comment = manual.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: '댓글을 찾을 수 없습니다.' });
     
-    if (!comment.password || comment.password !== password) {
-      return res.status(403).json({ message: '비밀번호가 일치하지 않습니다.' });
+    if (!comment.authorId || comment.authorId.toString() !== req.user.userId) {
+      return res.status(403).json({ message: '자신이 작성한 댓글만 삭제할 수 있습니다.' });
     }
 
     manual.comments.pull(req.params.commentId);
@@ -183,7 +235,6 @@ app.delete('/api/manuals/:id/comments/:commentId', async (req, res) => {
   }
 });
 
-// API: AI 매뉴얼 피드백 받기
 app.post('/api/ai/review', async (req, res) => {
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -191,7 +242,6 @@ app.post('/api/ai/review', async (req, res) => {
     }
     
     const { title, category, content } = req.body;
-    
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
     const prompt = `
@@ -208,22 +258,15 @@ app.post('/api/ai/review', async (req, res) => {
 [작성된 내용]:
 ${content}
 `;
-    
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     res.status(200).json({ feedback: response.text });
   } catch (err) {
     res.status(500).json({ message: 'AI 피드백 생성 중 오류가 발생했습니다.', error: err.message });
   }
 });
 
-// React 프론트엔드 정적 파일 서빙 (배포 환경용)
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
-// API 라우트를 제외한 모든 요청을 React 앱으로 넘김
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getManualById, updateManual, reviewManualWithAI } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Save, Sparkles } from 'lucide-react';
 
 export default function EditManual() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     category: '',
@@ -20,8 +22,13 @@ export default function EditManual() {
   const [reviewing, setReviewing] = useState(false);
 
   useEffect(() => {
+    if (user === null && !localStorage.getItem('token')) {
+      alert('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+      return;
+    }
     fetchManual();
-  }, [id]);
+  }, [id, user]);
 
   const fetchManual = async () => {
     try {

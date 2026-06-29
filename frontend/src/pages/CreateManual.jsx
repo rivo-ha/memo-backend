@@ -1,10 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createManual, reviewManualWithAI } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { ArrowLeft, Save, Sparkles } from 'lucide-react';
 
 export default function CreateManual() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    if (user === null && !localStorage.getItem('token')) {
+      alert('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
   const [formData, setFormData] = useState({
     title: '',
     category: '',
