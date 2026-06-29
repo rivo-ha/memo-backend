@@ -6,6 +6,7 @@ import EditManual from './pages/EditManual';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import SiteGateway from './components/SiteGateway';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BookOpen, LogOut, User } from 'lucide-react';
 import './index.css';
@@ -45,10 +46,11 @@ function Navigation() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="container animate-fade-in">
-          <Navigation />
+    <SiteGateway>
+      <AuthProvider>
+        <Router>
+          <div className="container animate-fade-in">
+            <Navigation />
 
         <main>
           <Routes>
@@ -63,7 +65,8 @@ function App() {
         </main>
       </div>
       </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </SiteGateway>
   );
 }
 

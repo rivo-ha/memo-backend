@@ -96,6 +96,18 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 내 정보 가져오기
+app.post('/api/auth/verify-site', (req, res) => {
+  const { password } = req.body;
+  if (!process.env.SITE_PASSWORD) {
+    return res.status(500).json({ message: '서버에 사이트 비밀번호가 설정되지 않았습니다.' });
+  }
+  if (password === process.env.SITE_PASSWORD) {
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ message: '비밀번호가 틀렸습니다.' });
+  }
+});
+
 app.put('/api/auth/profile', authMiddleware, async (req, res) => {
   try {
     const { name } = req.body;
