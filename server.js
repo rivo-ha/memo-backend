@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
@@ -134,6 +135,14 @@ app.post('/api/manuals/:id/comments', async (req, res) => {
   } catch (err) {
     res.status(400).json({ message: '댓글을 저장하는 중 오류가 발생했습니다.', error: err.message });
   }
+});
+
+// React 프론트엔드 정적 파일 서빙 (배포 환경용)
+app.use(express.static(path.join(__dirname, 'frontend/dist')));
+
+// API 라우트를 제외한 모든 요청을 React 앱으로 넘김
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });
 
 app.listen(PORT, () => {
