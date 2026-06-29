@@ -258,7 +258,7 @@ app.post('/api/ai/review', async (req, res) => {
 [작성된 내용]:
 ${content}
 `;
-    const response = await ai.models.generateContent({ model: 'gemini-1.5-flash', contents: prompt });
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     res.status(200).json({ feedback: response.text });
   } catch (err) {
     res.status(500).json({ message: 'AI 피드백 생성 중 오류가 발생했습니다.', error: err.message });
