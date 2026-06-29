@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getManualById, updateManual, reviewManualWithAI } from '../api';
+import { getManualById, updateManual, reviewManualWithAI, reviseManualWithAI } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Save, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Sparkles, Edit3 } from 'lucide-react';
 
 export default function EditManual() {
   const { id } = useParams();
@@ -20,6 +20,7 @@ export default function EditManual() {
   // AI Feedback state
   const [aiFeedback, setAiFeedback] = useState('');
   const [reviewing, setReviewing] = useState(false);
+  const [revising, setRevising] = useState(false);
 
   useEffect(() => {
     if (user === null && !localStorage.getItem('token')) {
@@ -75,6 +76,35 @@ export default function EditManual() {
       alert(error.response?.data?.message || 'AI 피드백을 가져오지 못했습니다. 서버 설정을 확인하세요.');
     } finally {
       setReviewing(false);
+    }
+  };
+
+  const handleRevise = async () => {
+    if (!formData.content) {
+      alert('내용을 먼저 작성해주세요!');
+      return;
+    }
+    
+    if (!window.confirm('AI가 내용을 다듬어 원래 내용을 완전히 덮어씌웁니다. 계속하시겠습니까?')) {
+      return;
+    }
+    
+    setRevising(true);
+    try {
+      const response = await reviseManualWithAI({
+        content: formData.content
+      });
+      
+      setFormData({
+        ...formData,
+        content: response.data.revisedContent
+      });
+      alert('AI가 내용을 성공적으로 다듬었습니다!');
+    } catch (error) {
+      console.error('Failed to get AI revision', error);
+      alert(error.response?.data?.message || 'AI 수정 중 오류가 발생했습니다. 서버 설정을 확인하세요.');
+    } finally {
+      setRevising(false);
     }
   };
 
@@ -165,15 +195,27 @@ export default function EditManual() {
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button 
-              type="button" 
-              onClick={handleReview} 
-              className="btn btn-secondary" 
-              disabled={reviewing}
-              style={{ borderColor: '#d8b4fe', color: '#9333ea', backgroundColor: '#faf5ff' }}
-            >
-              <Sparkles size={18} /> {reviewing ? 'AI가 검토하는 중...' : 'AI에게 피드백 받기'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button 
+                type="button" 
+                onClick={handleReview} 
+                className="btn btn-secondary" 
+                disabled={reviewing || revising}
+                style={{ borderColor: '#d8b4fe', color: '#9333ea', backgroundColor: '#faf5ff' }}
+              >
+                <Sparkles size={18} /> {reviewing ? 'AI 검토 중...' : 'AI 피드백 받기'}
+              </button>
+              
+              <button 
+                type="button" 
+                onClick={handleRevise} 
+                className="btn btn-primary" 
+                disabled={reviewing || revising}
+                style={{ backgroundColor: '#8b5cf6', borderColor: '#8b5cf6' }}
+              >
+                <Edit3 size={18} /> {revising ? 'AI가 다듬는 중...' : 'AI가 내용 다듬기'}
+              </button>
+            </div>
             
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               <Save size={18} /> {submitting ? '저장 중...' : '수정 완료'}

@@ -265,6 +265,40 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });
 
+app.post('/api/ai/revise', async (req, res) => {
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ message: 'GEMINI_API_KEY가 서버에 설정되지 않았습니다. 관리자에게 문의하세요.' });
+    }
+    
+    const { content } = req.body;
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    const prompt = `
+당신은 사내 매뉴얼과 문서를 전문적으로 교정하는 AI 에디터입니다.
+아래 작성된 매뉴얼 내용을 읽고, 오탈자를 교정하고 문맥을 더 자연스럽고 읽기 쉽게 완전히 다듬어 주세요.
+반드시 **교정된 최종 내용만 텍스트로 출력**하고, 어떠한 인사말이나 서론, 결론, 혹은 추가 설명이나 마크다운 코드 블록(예: \`\`\`)을 포함하지 마세요.
+
+[작성된 내용]:
+${content}
+`;
+    const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
+    
+    // 응답 텍스트에서 혹시 모를 앞뒤 마크다운(```) 제거나 공백 제거
+    let revisedText = response.text.trim();
+    if (revisedText.startsWith('\`\`\`')) {
+      revisedText = revisedText.split('\\n').slice(1).join('\\n');
+    }
+    if (revisedText.endsWith('\`\`\`')) {
+      revisedText = revisedText.slice(0, -3).trim();
+    }
+    
+    res.status(200).json({ revisedContent: revisedText });
+  } catch (err) {
+    res.status(500).json({ message: 'AI 교정 중 오류가 발생했습니다.', error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
 });
