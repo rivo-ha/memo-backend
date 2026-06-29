@@ -48,6 +48,7 @@ const manualSchema = new mongoose.Schema({
   tags: [String],
   author: { type: String, default: '손님(Guest)' },
   authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  images: [String],
   lastUpdated: String,
   comments: [commentSchema]
 });

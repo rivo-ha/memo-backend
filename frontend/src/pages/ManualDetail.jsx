@@ -119,9 +119,22 @@ export default function ManualDetail() {
           )}
         </div>
 
-        <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '1.1rem' }}>
+        <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '1.1rem', marginBottom: '2rem' }}>
           {manual.content}
         </div>
+
+        {manual.images && manual.images.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--surface-border)', paddingTop: '2rem' }}>
+            {manual.images.map((img, index) => (
+              <img 
+                key={index}
+                src={img} 
+                alt={`manual-img-${index}`} 
+                style={{ width: '100%', maxWidth: '100%', borderRadius: '8px', border: '1px solid var(--border)' }} 
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="glass-card">

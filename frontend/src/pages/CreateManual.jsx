@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createManual, reviewManualWithAI, reviseManualWithAI } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Save, Sparkles, Edit3 } from 'lucide-react';
+import { compressImage } from '../utils/imageUtils';
+import { ArrowLeft, Save, Sparkles, Edit3, Image as ImageIcon, X } from 'lucide-react';
 
 export default function CreateManual() {
   const navigate = useNavigate();
@@ -19,7 +20,8 @@ export default function CreateManual() {
     title: '',
     category: '',
     content: '',
-    tags: ''
+    tags: '',
+    images: []
   });
   const [submitting, setSubmitting] = useState(false);
   
@@ -33,6 +35,32 @@ export default function CreateManual() {
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    try {
+      const compressedImages = await Promise.all(
+        files.map(file => compressImage(file))
+      );
+      
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...compressedImages]
+      }));
+    } catch (error) {
+      console.error('Image compression failed', error);
+      alert('이미지 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const removeImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
   };
 
   const handleReview = async () => {
@@ -159,8 +187,55 @@ export default function CreateManual() {
               onChange={handleChange} 
               required 
               placeholder="매뉴얼의 상세 내용을 작성해주세요..."
-              style={{ minHeight: '300px' }}
+              style={{ minHeight: '300px', marginBottom: '1rem' }}
             />
+            
+            {/* Image Upload Section */}
+            <div style={{ padding: '1rem', backgroundColor: 'var(--background)', borderRadius: '8px', border: '1px dashed var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <span style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ImageIcon size={18} /> 사진 첨부
+                </span>
+                <label className="btn btn-secondary" style={{ cursor: 'pointer', padding: '0.5rem 1rem' }}>
+                  사진 선택
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    onChange={handleImageUpload} 
+                    style={{ display: 'none' }} 
+                  />
+                </label>
+              </div>
+              
+              {formData.images.length > 0 && (
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  {formData.images.map((img, index) => (
+                    <div key={index} style={{ position: 'relative', width: '100px', height: '100px' }}>
+                      <img 
+                        src={img} 
+                        alt={`attachment-${index}`} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border)' }} 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => removeImage(index)}
+                        style={{
+                          position: 'absolute', top: '-8px', right: '-8px',
+                          backgroundColor: 'var(--danger)', color: 'white',
+                          border: 'none', borderRadius: '50%',
+                          width: '24px', height: '24px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {aiFeedback && (
