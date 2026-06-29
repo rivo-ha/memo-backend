@@ -4,7 +4,7 @@ const cors = require('cors');
 
 const app = express();
 // 서버 포트 설정 (Render 등에서는 process.env.PORT를 자동으로 할당해줍니다)
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // CORS 설정: 프론트엔드 도메인(예: 배포된 Cloudflare 주소)에서 서버로 요청을 보낼 수 있게 허용합니다.
 // 실제 배포 시에는 origin에 프론트엔드 주소만 넣는 것이 안전합니다.
