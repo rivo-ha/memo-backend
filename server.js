@@ -52,6 +52,43 @@ app.get('/api/manuals', async (req, res) => {
   }
 });
 
+// API: 특정 매뉴얼 데이터 하나 가져오기
+app.get('/api/manuals/:id', async (req, res) => {
+  try {
+    const manual = await Manual.findOne({ id: Number(req.params.id) });
+    if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
+    res.status(200).json(manual);
+  } catch (err) {
+    res.status(500).json({ message: '데이터를 불러오는 중 오류가 발생했습니다.', error: err.message });
+  }
+});
+
+// API: 새로운 매뉴얼 생성하기
+app.post('/api/manuals', async (req, res) => {
+  try {
+    const { title, category, content, tags } = req.body;
+    
+    // 가장 큰 id를 찾아 1을 더해 새로운 id 생성
+    const lastManual = await Manual.findOne().sort({ id: -1 });
+    const newId = lastManual ? lastManual.id + 1 : 1;
+    
+    const newManual = new Manual({
+      id: newId,
+      title,
+      category,
+      content,
+      tags: tags || [],
+      lastUpdated: new Date().toISOString().split('T')[0], // YYYY-MM-DD 형식
+      comments: []
+    });
+    
+    await newManual.save();
+    res.status(201).json(newManual);
+  } catch (err) {
+    res.status(400).json({ message: '매뉴얼을 생성하는 중 오류가 발생했습니다.', error: err.message });
+  }
+});
+
 // API 2: 특정 매뉴얼에 새로운 댓글 추가하기
 app.post('/api/manuals/:id/comments', async (req, res) => {
   try {
