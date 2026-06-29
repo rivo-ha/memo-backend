@@ -46,7 +46,7 @@ function Navigation() {
 
 function App() {
   return (
-    <SiteGateway>
+    <>
       <AuthProvider>
         <Router>
           <div className="container animate-fade-in">
@@ -66,7 +66,7 @@ function App() {
       </div>
       </Router>
       </AuthProvider>
-    </SiteGateway>
+    </>
   );
 }
 
