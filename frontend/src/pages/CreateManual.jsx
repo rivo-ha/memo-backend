@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createManual } from '../api';
-import { ArrowLeft, Save } from 'lucide-react';
+import { createManual, reviewManualWithAI } from '../api';
+import { ArrowLeft, Save, Sparkles } from 'lucide-react';
 
 export default function CreateManual() {
   const navigate = useNavigate();
@@ -12,12 +12,38 @@ export default function CreateManual() {
     tags: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  
+  // AI Feedback state
+  const [aiFeedback, setAiFeedback] = useState('');
+  const [reviewing, setReviewing] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleReview = async () => {
+    if (!formData.title || !formData.content) {
+      alert('제목과 내용을 먼저 작성해주세요!');
+      return;
+    }
+    setReviewing(true);
+    setAiFeedback('');
+    try {
+      const response = await reviewManualWithAI({
+        title: formData.title,
+        category: formData.category,
+        content: formData.content
+      });
+      setAiFeedback(response.data.feedback);
+    } catch (error) {
+      console.error('Failed to get AI review', error);
+      alert(error.response?.data?.message || 'AI 피드백을 가져오지 못했습니다. 서버 설정을 확인하세요.');
+    } finally {
+      setReviewing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -97,13 +123,36 @@ export default function CreateManual() {
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-            <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
-              취소
+          {aiFeedback && (
+            <div style={{ marginBottom: '2rem', padding: '1.5rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px' }}>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#166534', marginBottom: '1rem' }}>
+                <Sparkles size={18} /> AI 피드백 결과
+              </h4>
+              <p style={{ whiteSpace: 'pre-wrap', color: '#15803d', fontSize: '0.95rem' }}>
+                {aiFeedback}
+              </p>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button 
+              type="button" 
+              onClick={handleReview} 
+              className="btn btn-secondary" 
+              disabled={reviewing}
+              style={{ borderColor: '#d8b4fe', color: '#9333ea', backgroundColor: '#faf5ff' }}
+            >
+              <Sparkles size={18} /> {reviewing ? 'AI가 검토하는 중...' : 'AI에게 피드백 받기'}
             </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              <Save size={18} /> {submitting ? '저장 중...' : '매뉴얼 저장'}
-            </button>
+            
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
+                취소
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                <Save size={18} /> {submitting ? '저장 중...' : '매뉴얼 저장'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const { GoogleGenAI } = require('@google/genai');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
@@ -179,6 +180,43 @@ app.delete('/api/manuals/:id/comments/:commentId', async (req, res) => {
     res.status(200).json(manual);
   } catch (err) {
     res.status(400).json({ message: '댓글 삭제 실패', error: err.message });
+  }
+});
+
+// API: AI 매뉴얼 피드백 받기
+app.post('/api/ai/review', async (req, res) => {
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ message: 'GEMINI_API_KEY가 서버에 설정되지 않았습니다. 관리자에게 문의하세요.' });
+    }
+    
+    const { title, category, content } = req.body;
+    
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    const prompt = `
+당신은 사내 매뉴얼과 문서를 전문적으로 검토하는 AI 에디터입니다.
+작성자가 작성한 다음 매뉴얼 초안을 읽고, 다음 기준에 따라 친절하게 피드백해 주세요:
+1. 오탈자나 어색한 문장 교정
+2. 가독성과 글의 흐름에 대한 조언
+3. 매뉴얼로서 누락되었거나 보완하면 좋을 내용 제안
+
+전체 길이는 3~4문단 정도로 깔끔하게 요약해서 답변해 주세요.
+
+[매뉴얼 제목]: ${title}
+[카테고리]: ${category}
+[작성된 내용]:
+${content}
+`;
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    
+    res.status(200).json({ feedback: response.text });
+  } catch (err) {
+    res.status(500).json({ message: 'AI 피드백 생성 중 오류가 발생했습니다.', error: err.message });
   }
 });
 
