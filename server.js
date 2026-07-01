@@ -311,12 +311,6 @@ ${content}
   }
 });
 
-app.use(express.static(path.join(__dirname, 'frontend/dist')));
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
-});
-
 app.post('/api/ai/revise', async (req, res) => {
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -338,10 +332,10 @@ ${content}
     
     // 응답 텍스트에서 혹시 모를 앞뒤 마크다운(```) 제거나 공백 제거
     let revisedText = response.text.trim();
-    if (revisedText.startsWith('\`\`\`')) {
-      revisedText = revisedText.split('\\n').slice(1).join('\\n');
+    if (revisedText.startsWith('```')) {
+      revisedText = revisedText.split('\n').slice(1).join('\n');
     }
-    if (revisedText.endsWith('\`\`\`')) {
+    if (revisedText.endsWith('```')) {
       revisedText = revisedText.slice(0, -3).trim();
     }
     
@@ -349,6 +343,59 @@ ${content}
   } catch (err) {
     res.status(500).json({ message: 'AI 교정 중 오류가 발생했습니다.', error: err.message });
   }
+});
+
+app.post('/api/ai/search', async (req, res) => {
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(400).json({ message: 'GEMINI_API_KEY가 설정되지 않았습니다.' });
+    }
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ message: '검색어를 입력해주세요.' });
+
+    // Fetch all manuals (excluding huge images for performance)
+    const manuals = await Manual.find({}, 'id title category tags content');
+    
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    const prompt = `
+당신은 똑똑한 사내 매뉴얼 검색 도우미 AI입니다.
+아래는 현재 시스템에 등록된 모든 매뉴얼들의 정보(JSON)입니다.
+${JSON.stringify(manuals)}
+
+사용자의 질문: "${query}"
+
+위 질문을 읽고, 질문에 가장 부합하고 도움이 될 만한 매뉴얼을 최대 3개까지만 골라주세요.
+만약 관련된 매뉴얼이 없다면 추천하지 않아도 됩니다.
+
+반드시 아래 JSON 형식으로만 답변을 반환하세요. 마크다운이나 다른 텍스트는 포함하지 마세요.
+{
+  "recommendations": [
+    { "id": 매뉴얼id숫자, "reason": "이 매뉴얼을 추천하는 이유 (친절한 말투로 1~2문장)" }
+  ],
+  "message": "사용자에게 보여줄 친절한 검색 결과 요약 인사말 (예: 원하시는 프린터 관련 매뉴얼을 2개 찾았습니다!)"
+}
+`;
+    const response = await ai.models.generateContent({ 
+      model: 'gemini-1.5-flash', 
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
+    
+    const jsonText = response.text;
+    res.status(200).json(JSON.parse(jsonText));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'AI 검색 중 오류가 발생했습니다.', error: err.message });
+  }
+});
+
+app.use(express.static(path.join(__dirname, 'frontend/dist')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });
 
 app.listen(PORT, () => {

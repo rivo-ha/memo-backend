@@ -29,3 +29,4 @@ export const updateComment = (manualId, commentId, data) => api.put(`/manuals/${
 export const deleteComment = (manualId, commentId, password) => api.delete(`/manuals/${manualId}/comments/${commentId}`, { data: { password } });
 export const reviewManualWithAI = (data) => api.post('/ai/review', data);
 export const reviseManualWithAI = (data) => api.post('/ai/revise', data);
+export const searchWithAI = (query) => api.post('/ai/search', { query });
