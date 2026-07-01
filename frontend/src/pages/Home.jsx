@@ -66,7 +66,8 @@ export default function Home() {
     
     // 3. Filter by regular search
     return manual.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           manual.category.toLowerCase().includes(searchTerm.toLowerCase());
+           manual.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           (manual.tags && manual.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
   });
 
   const pageTitle = currentDocType === 'interview' ? '면담일지' : '매뉴얼';
