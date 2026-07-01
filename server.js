@@ -384,7 +384,10 @@ ${JSON.stringify(manuals)}
       }
     });
     
-    const jsonText = response.text;
+    let jsonText = response.text.trim();
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '').trim();
+    }
     res.status(200).json(JSON.parse(jsonText));
   } catch (err) {
     console.error(err);
