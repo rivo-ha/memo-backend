@@ -88,7 +88,7 @@ export default function ManualDetail() {
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem' }}>로딩 중...</div>;
   if (!manual) return <div style={{ textAlign: 'center', padding: '3rem' }}>매뉴얼을 찾을 수 없습니다.</div>;
 
-  const isManualAuthor = user && user.userId === manual.authorId;
+  const isManualAuthor = user && (user.userId === manual.authorId || user.username === 'rivo');
 
   return (
     <div className="animate-fade-in">
@@ -148,7 +148,7 @@ export default function ManualDetail() {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>아직 댓글이 없습니다. 첫 번째 댓글을 남겨보세요!</p>
           ) : (
             manual.comments?.map((comment) => {
-              const isCommentAuthor = user && user.userId === comment.authorId;
+              const isCommentAuthor = user && (user.userId === comment.authorId || user.username === 'rivo');
               
               return (
                 <div key={comment._id} className="comment-box animate-fade-in">

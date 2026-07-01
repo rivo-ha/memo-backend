@@ -210,9 +210,9 @@ app.put('/api/manuals/:id', authMiddleware, async (req, res) => {
     const manual = await Manual.findOne({ id: Number(req.params.id) });
     if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
 
-    // 작성자만 수정 가능 (혹은 모든 회원이 수정 가능하게 할 수도 있지만, 보안상 작성자만으로 설정)
-    if (manual.authorId && manual.authorId.toString() !== req.user.userId) {
-      return res.status(403).json({ message: '자신이 작성한 글만 수정할 수 있습니다.' });
+    // 작성자 또는 최고 관리자(rivo)만 수정 가능
+    if (manual.authorId && manual.authorId.toString() !== req.user.userId && req.user.username !== 'rivo') {
+      return res.status(403).json({ message: '자신이 작성한 글만 수정할 수 있습니다. (관리자 권한 필요)' });
     }
 
     manual.title = title;
@@ -255,7 +255,7 @@ app.put('/api/manuals/:id/comments/:commentId', authMiddleware, async (req, res)
     const comment = manual.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: '댓글을 찾을 수 없습니다.' });
     
-    if (!comment.authorId || comment.authorId.toString() !== req.user.userId) {
+    if ((!comment.authorId || comment.authorId.toString() !== req.user.userId) && req.user.username !== 'rivo') {
       return res.status(403).json({ message: '자신이 작성한 댓글만 수정할 수 있습니다.' });
     }
 
@@ -275,7 +275,7 @@ app.delete('/api/manuals/:id/comments/:commentId', authMiddleware, async (req, r
     const comment = manual.comments.id(req.params.commentId);
     if (!comment) return res.status(404).json({ message: '댓글을 찾을 수 없습니다.' });
     
-    if (!comment.authorId || comment.authorId.toString() !== req.user.userId) {
+    if ((!comment.authorId || comment.authorId.toString() !== req.user.userId) && req.user.username !== 'rivo') {
       return res.status(403).json({ message: '자신이 작성한 댓글만 삭제할 수 있습니다.' });
     }
 
