@@ -104,11 +104,11 @@ export default function Home() {
         )}
       </div>
 
-      <div style={{ position: 'relative', marginBottom: '2rem' }}>
+      <div style={{ position: 'relative', marginBottom: '1rem' }}>
         <Search size={20} color="#94a3b8" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
         <input 
           type="text" 
-          placeholder={`${pageTitle} 일반 검색 (제목 또는 카테고리)...`} 
+          placeholder={`${pageTitle} 일반 검색 (제목 또는 카테고리 또는 이름)...`} 
           style={{ paddingLeft: '3rem', marginBottom: 0 }}
           value={searchTerm}
           onChange={(e) => {
@@ -116,6 +116,32 @@ export default function Home() {
             if (aiResult) setAiResult(null); // Clear AI results when typing in normal search
           }}
         />
+      </div>
+
+      {/* 태그(이름) 필터 버튼 목록 */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '2rem', maxHeight: '100px', overflowY: 'auto', padding: '0.5rem' }}>
+        {[...new Set(manuals.filter(m => (m.docType || 'manual') === currentDocType).flatMap(m => m.tags || []).filter(t => t))].map(tag => (
+          <button 
+            key={tag} 
+            onClick={() => {
+              setSearchTerm(tag === searchTerm ? '' : tag);
+              if (aiResult) setAiResult(null);
+            }}
+            style={{ 
+              cursor: 'pointer', 
+              border: '1px solid var(--primary)', 
+              borderRadius: '20px',
+              padding: '0.3rem 0.8rem', 
+              backgroundColor: searchTerm === tag ? 'var(--primary)' : 'transparent',
+              color: searchTerm === tag ? 'white' : 'var(--primary)',
+              fontSize: '0.85rem',
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+          >
+            {tag}
+          </button>
+        ))}
       </div>
 
       {loading ? (
