@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { createManual, reviewManualWithAI, reviseManualWithAI } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { compressImage } from '../utils/imageUtils';
@@ -7,8 +7,13 @@ import { ArrowLeft, Save, Sparkles, Edit3, Image as ImageIcon, X } from 'lucide-
 
 export default function CreateManual() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   
+  const queryParams = new URLSearchParams(location.search);
+  const docType = queryParams.get('type') === 'interview' ? 'interview' : 'manual';
+  const pageTitle = docType === 'interview' ? '면담일지' : '매뉴얼';
+
   useEffect(() => {
     if (user === null && !localStorage.getItem('token')) {
       alert('로그인이 필요한 서비스입니다.');
@@ -121,6 +126,7 @@ export default function CreateManual() {
     try {
       const payload = {
         ...formData,
+        docType,
         tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean)
       };
       
@@ -128,7 +134,7 @@ export default function CreateManual() {
       navigate(`/manual/${response.data.id}`);
     } catch (error) {
       console.error('Failed to create manual', error);
-      alert('매뉴얼 생성에 실패했습니다.');
+      alert(`${pageTitle} 생성에 실패했습니다.`);
     } finally {
       setSubmitting(false);
     }
@@ -141,7 +147,7 @@ export default function CreateManual() {
       </button>
 
       <div className="glass-card">
-        <h2 style={{ marginBottom: '2rem' }}>새 매뉴얼 작성</h2>
+        <h2 style={{ marginBottom: '2rem' }}>새 {pageTitle} 작성</h2>
         
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '1.5rem' }}>
@@ -152,7 +158,7 @@ export default function CreateManual() {
               value={formData.title} 
               onChange={handleChange} 
               required 
-              placeholder="매뉴얼 제목을 입력하세요"
+              placeholder={`${pageTitle} 제목을 입력하세요`}
             />
           </div>
 
@@ -186,7 +192,7 @@ export default function CreateManual() {
               value={formData.content} 
               onChange={handleChange} 
               required 
-              placeholder="매뉴얼의 상세 내용을 작성해주세요..."
+              placeholder={`${pageTitle}의 상세 내용을 작성해주세요...`}
               style={{ minHeight: '300px', marginBottom: '1rem' }}
             />
             
@@ -277,7 +283,7 @@ export default function CreateManual() {
                 취소
               </button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>
-                <Save size={18} /> {submitting ? '저장 중...' : '매뉴얼 저장'}
+                <Save size={18} /> {submitting ? '저장 중...' : `${pageTitle} 저장`}
               </button>
             </div>
           </div>

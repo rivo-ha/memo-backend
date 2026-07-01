@@ -14,6 +14,7 @@ export default function EditManual() {
     category: '',
     content: '',
     tags: '',
+    docType: 'manual',
     images: []
   });
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,7 @@ export default function EditManual() {
         category: manual.category,
         content: manual.content,
         tags: manual.tags ? manual.tags.join(', ') : '',
+        docType: manual.docType || 'manual',
         images: manual.images || []
       });
     } catch (error) {
@@ -159,6 +161,8 @@ export default function EditManual() {
 
   if (loading) return <div style={{ textAlign: 'center', padding: '3rem' }}>로딩 중...</div>;
 
+  const pageTitle = formData.docType === 'interview' ? '면담일지' : '매뉴얼';
+
   return (
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
       <button onClick={() => navigate(-1)} className="btn btn-secondary" style={{ marginBottom: '2rem' }}>
@@ -166,7 +170,7 @@ export default function EditManual() {
       </button>
 
       <div className="glass-card">
-        <h2 style={{ marginBottom: '2rem' }}>매뉴얼 수정</h2>
+        <h2 style={{ marginBottom: '2rem' }}>{pageTitle} 수정</h2>
         
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '1.5rem' }}>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getManuals, searchWithAI } from '../api';
 import { FileText, Search, Sparkles } from 'lucide-react';
 
@@ -11,9 +11,18 @@ export default function Home() {
   const [aiSearching, setAiSearching] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Default to 'manual' if route is '/', otherwise use route path
+  const currentDocType = location.pathname.includes('interviews') ? 'interview' : 'manual';
+
   useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/manuals', { replace: true });
+    }
     fetchManuals();
-  }, []);
+  }, [location.pathname]);
 
   const fetchManuals = async () => {
     try {
@@ -46,17 +55,29 @@ export default function Home() {
   };
 
   const filteredManuals = manuals.filter(manual => {
-    // If AI search result exists, only show recommended ones
+    // 1. Filter by docType first
+    const manualType = manual.docType || 'manual'; // handle old data
+    if (manualType !== currentDocType) return false;
+
+    // 2. Filter by AI search recommendations
     if (aiResult?.recommendations) {
       return aiResult.recommendations.some(rec => String(rec.id) === String(manual.id));
     }
     
+    // 3. Filter by regular search
     return manual.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
            manual.category.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  const pageTitle = currentDocType === 'interview' ? '면담일지' : '매뉴얼';
+  const pageIcon = currentDocType === 'interview' ? '👥' : '📚';
+
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{pageIcon} {pageTitle} 목록</h2>
+      </div>
+
       {/* AI Semantic Search Box */}
       <div className="glass-card" style={{ marginBottom: '2rem', background: 'linear-gradient(to right, #faf5ff, #f3e8ff)', border: '1px solid #d8b4fe' }}>
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#7e22ce', marginBottom: '1rem' }}>
@@ -65,7 +86,7 @@ export default function Home() {
         <form onSubmit={handleAiSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: aiResult ? '1.5rem' : 0 }}>
           <input 
             type="text" 
-            placeholder="예: 프린터 토너 교체 방법 찾아줘" 
+            placeholder={`예: 관련된 ${pageTitle} 찾아줘`} 
             value={aiQuery}
             onChange={(e) => setAiQuery(e.target.value)}
             style={{ marginBottom: 0, flexGrow: 1, borderColor: '#d8b4fe' }}
@@ -86,7 +107,7 @@ export default function Home() {
         <Search size={20} color="#94a3b8" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
         <input 
           type="text" 
-          placeholder="매뉴얼 일반 검색 (제목 또는 카테고리)..." 
+          placeholder={`${pageTitle} 일반 검색 (제목 또는 카테고리)...`} 
           style={{ paddingLeft: '3rem', marginBottom: 0 }}
           value={searchTerm}
           onChange={(e) => {

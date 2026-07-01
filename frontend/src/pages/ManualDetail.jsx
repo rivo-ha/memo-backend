@@ -89,6 +89,7 @@ export default function ManualDetail() {
   if (!manual) return <div style={{ textAlign: 'center', padding: '3rem' }}>매뉴얼을 찾을 수 없습니다.</div>;
 
   const isManualAuthor = user && (user.userId === manual.authorId || user.username === 'rivo');
+  const pageTitle = manual.docType === 'interview' ? '면담일지' : '매뉴얼';
 
   return (
     <div className="animate-fade-in">
@@ -98,7 +99,7 @@ export default function ManualDetail() {
         </button>
         {isManualAuthor && (
           <button onClick={() => navigate(`/edit/${manual.id}`)} className="btn btn-outline">
-            <Edit2 size={16} /> 매뉴얼 수정
+            <Edit2 size={16} /> {pageTitle} 수정
           </button>
         )}
       </div>

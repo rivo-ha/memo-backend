@@ -48,6 +48,7 @@ const manualSchema = new mongoose.Schema({
   tags: [String],
   author: { type: String, default: '손님(Guest)' },
   authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  docType: { type: String, default: 'manual' }, // 'manual' or 'interview'
   images: [String],
   lastUpdated: String,
   comments: [commentSchema]
@@ -181,7 +182,7 @@ app.get('/api/manuals/:id', async (req, res) => {
 
 app.post('/api/manuals', authMiddleware, async (req, res) => {
   try {
-    const { title, category, content, tags } = req.body;
+    const { title, category, content, tags, docType } = req.body;
     const lastManual = await Manual.findOne().sort({ id: -1 });
     const newId = lastManual ? lastManual.id + 1 : 1;
     
@@ -191,6 +192,7 @@ app.post('/api/manuals', authMiddleware, async (req, res) => {
       category,
       content,
       tags: tags || [],
+      docType: docType || 'manual',
       author: req.user.name,
       authorId: req.user.userId,
       lastUpdated: new Date().toISOString().split('T')[0],
@@ -206,7 +208,7 @@ app.post('/api/manuals', authMiddleware, async (req, res) => {
 
 app.put('/api/manuals/:id', authMiddleware, async (req, res) => {
   try {
-    const { title, category, content, tags } = req.body;
+    const { title, category, content, tags, docType } = req.body;
     const manual = await Manual.findOne({ id: Number(req.params.id) });
     if (!manual) return res.status(404).json({ message: '매뉴얼을 찾을 수 없습니다.' });
 
@@ -219,6 +221,7 @@ app.put('/api/manuals/:id', authMiddleware, async (req, res) => {
     manual.category = category;
     manual.content = content;
     if (tags !== undefined) manual.tags = tags;
+    if (docType !== undefined) manual.docType = docType;
     manual.lastUpdated = new Date().toISOString().split('T')[0];
 
     await manual.save();
