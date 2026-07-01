@@ -48,7 +48,7 @@ export default function Home() {
   const filteredManuals = manuals.filter(manual => {
     // If AI search result exists, only show recommended ones
     if (aiResult?.recommendations) {
-      return aiResult.recommendations.some(rec => rec.id === manual.id);
+      return aiResult.recommendations.some(rec => String(rec.id) === String(manual.id));
     }
     
     return manual.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -108,7 +108,7 @@ export default function Home() {
             </div>
           ) : (
             filteredManuals.map(manual => {
-              const aiRec = aiResult?.recommendations?.find(r => r.id === manual.id);
+              const aiRec = aiResult?.recommendations?.find(r => String(r.id) === String(manual.id));
               
               return (
                 <Link to={`/manual/${manual.id}`} key={manual.id}>
